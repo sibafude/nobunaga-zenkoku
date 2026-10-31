@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>信ちゃんの野望・全国版</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<section id="title" class="screen">
+  <div class="wrap">
+    <div class="brand">
+      <canvas id="crest" width="150" height="150" aria-hidden="true"></canvas>
+      <h1>信ちゃんの野望<small>全国版</small></h1>
+      <p class="sub">独自制作のレトロ戦国シミュレーション</p>
+    </div>
+    <div id="menu" class="menu"></div>
+  </div>
+</section>
+
+<section id="mode" class="screen" hidden>
+  <h2>ゲームモード</h2>
+  <button id="m50" class="main big">50か国モード<small>全国50か国を舞台にする主役モード</small></button>
+  <button class="big" disabled>17か国モード<small>準備中（後のPhaseで追加）</small></button>
+  <button id="modeBack">← タイトルへ戻る</button>
+</section>
+
+<section id="map" class="screen" hidden>
+  <nav id="tabs"><button id="mapBack">← 戻る</button></nav>
+  <div id="stage"><canvas id="mapCanvas"></canvas></div>
+  <aside id="info"></aside>
+</section>
+
+<div id="modal" hidden>
+  <div class="paper">
+    <h2 id="mTitle"></h2>
+    <p id="mBody"></p>
+    <button id="mClose" class="main">閉じる</button>
+  </div>
+</div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
