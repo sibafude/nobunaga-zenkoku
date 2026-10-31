@@ -1,7 +1,7 @@
 :root{--bg:#070b1f;--panel:#0d1636;--line:#c9a85c;--ink:#f2ecd8;--dim:#9aa3c4;--hi:#ffd24a;
 --t:env(safe-area-inset-top,0px);--r:env(safe-area-inset-right,0px);--b:env(safe-area-inset-bottom,0px);--l:env(safe-area-inset-left,0px)}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
-html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none;background:var(--bg);color:var(--ink);font:16px/1.5 "Hiragino Kaku Gothic ProN","Hiragino Sans",sans-serif}
+*{box-sizing:border-box;touch-action:manipulation;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+html,body{height:100%;margin:0;-webkit-text-size-adjust:100%;text-size-adjust:100%;overflow:hidden;overscroll-behavior:none;background:var(--bg);color:var(--ink);font:16px/1.5 "Hiragino Kaku Gothic ProN","Hiragino Sans",sans-serif}
 [hidden]{display:none!important}
 p,h1,h2{margin:0}
 h2{color:var(--hi);font-size:20px}
@@ -17,12 +17,13 @@ button.main{color:var(--hi);border-color:var(--hi)}
 #title{align-items:center}
 .wrap{display:flex;flex-direction:column;align-items:center;gap:16px;width:100%;max-width:520px;margin:auto}
 .brand{text-align:center}
-#crest{width:min(34vmin,150px);height:auto;aspect-ratio:1}
+#crest{width:min(28vmin,128px);height:auto;aspect-ratio:1}
 h1{margin-top:8px;font:700 clamp(28px,9vw,44px)/1.25 "Hiragino Mincho ProN","Yu Mincho",serif;letter-spacing:.1em;color:var(--hi);text-shadow:3px 3px 0 #6b1d1d}
 h1 small{font-size:.5em;letter-spacing:.6em;text-indent:.6em;color:var(--ink);text-shadow:none}
 .sub{margin-top:4px;font-size:12px;color:var(--dim)}
 .menu{display:grid;gap:8px;width:100%;padding:12px;border:3px double var(--line);background:var(--panel)}
 .menu button{background:var(--bg)}
+.menu small{display:inline;margin-left:.6em}
 
 /* モード選択 */
 #mode{align-items:center;justify-content:center}
@@ -35,7 +36,7 @@ h1 small{font-size:.5em;letter-spacing:.6em;text-indent:.6em;color:var(--ink);te
 #tabs button{flex:none;min-width:56px}
 #tabs .on{background:var(--hi);border-color:var(--hi);color:#1a1200}
 #stage{grid-area:s;position:relative;border:2px solid var(--line);background:#050816}
-#mapCanvas{position:absolute;inset:0;width:100%;height:100%;touch-action:manipulation}
+#mapCanvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
 #info{grid-area:i;overflow-y:auto;padding:8px 10px;border:3px double var(--line);background:var(--panel)}
 #info h2{font-size:18px}
 .nb{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
@@ -51,6 +52,5 @@ h1 small{font-size:.5em;letter-spacing:.6em;text-indent:.6em;color:var(--ink);te
   .wrap{flex-direction:row;max-width:900px}
   .brand{flex:1}
   .menu{flex:1.4;grid-template-columns:1fr 1fr}
-  .menu button:last-child{grid-column:1/-1}
   #map{grid-template-columns:minmax(0,65fr) minmax(0,35fr);grid-template-rows:auto minmax(0,1fr);grid-template-areas:"t i" "s i"}
 }
