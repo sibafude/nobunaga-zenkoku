@@ -43,4 +43,3 @@
   }));
   NB.DAIMYO_BY_ID = new Map(NB.DAIMYO.map((d) => [d.id, d]));
 })((window.NB = window.NB || {}));
-
