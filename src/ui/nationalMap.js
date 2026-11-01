@@ -1,7 +1,6 @@
-// 全国概略図：50国のノード地図（Phase 1の仮地図）。タップだけで操作できる。
+// 全国概略図：50国のノード地図。支配大名の色で塗り、タップで国情報を出す。
 (function (NB) {
   const { PROVINCES, PROVINCE_BY_ID, REGIONS } = NB;
-  const COLORS = ["#7fd6ff", "#6ee7a0", "#ffd24a", "#ff9d5c", "#ff7ab8", "#b79bff", "#5fe0d6", "#e6e6e6"];
   const FONT = '"Hiragino Kaku Gothic ProN","Hiragino Sans",sans-serif';
   const PAD = 30;      // 地図の余白(px)
   const MIN_SPAN = 18; // 地方図で最低限表示する範囲（地図単位）
@@ -12,9 +11,11 @@
       this.tabs = root.querySelector("#tabs");
       this.info = root.querySelector("#info");
       this.errors = errors;
-      this.region = -1; // -1 = 全国
+      this.region = -1;       // -1 = 全国
+      this.mode = "province"; // 地図の文字："province"（国名）／"daimyo"（大名名）
       this.selected = null;
       this.w = this.h = 0;
+      this.pos = new Map();   // 国ID → 画面上の位置（重なりを避けて少しずらした後）
       this.tabBtns = ["全国", ...REGIONS].map((name, i) => {
         const b = document.createElement("button");
         b.textContent = name;
@@ -22,6 +23,10 @@
         this.tabs.append(b);
         return b;
       });
+      this.toggle = document.createElement("button");
+      this.toggle.className = "tog";
+      this.toggle.onclick = () => { this.mode = this.mode === "province" ? "daimyo" : "province"; this.draw(); this.ui(); };
+      this.tabs.append(this.toggle);
       new ResizeObserver(() => this.resize()).observe(this.cv.parentElement);
       this.cv.addEventListener("pointerup", (e) => this.tap(e));
       // 地図上のダブルタップ拡大・長押しメニューを止める
@@ -30,6 +35,12 @@
     }
 
     inRegion(p) { return this.region < 0 || p.region === this.region; }
+
+    label(p) {
+      const dm = this.mode === "daimyo", d = dm ? NB.ownerOf(p.id) : null;
+      const t = dm ? d.family : p.name, y = dm ? d.familyYomi : p.yomi;
+      return this.region < 0 ? { t: t.slice(0, 2), y: "" } : { t, y }; // 全国図は2文字・読み仮名なし
+    }
 
     // 表示範囲を画面いっぱいに広げる変換（ノード地図なので縦横の倍率は別々）
     view() {
@@ -40,9 +51,33 @@
         return [lo, hi];
       };
       const [x0, x1] = span(L.map((p) => p.x)), [y0, y1] = span(L.map((p) => p.y));
-      const sx = (this.w - PAD * 2) / (x1 - x0), sy = (this.h - PAD * 2) / (y1 - y0);
-      this.r = Math.max(6, Math.min(12, Math.min(sx, sy) * 1.5)); // ノード半径
+      const extra = this.region < 0 ? 0 : 20; // 地方図は国名の下に読み仮名の行がある分、下に余白を足す
+      const sx = (this.w - PAD * 2) / (x1 - x0), sy = (this.h - PAD * 2 - extra) / (y1 - y0);
+      this.r = Math.max(6, Math.min(12, Math.min(sx, sy) * 1.5)); // 丸の半径
       return { sx, sy, ox: PAD - x0 * sx, oy: PAD - y0 * sy };
+    }
+
+    // 丸と国名が重ならないよう、近すぎる国どうしを少しずつ押し離す（仕様書の座標は変えず、表示だけずらす）
+    layout(list, v, lws, th) {
+      const bh = this.r * 2 + th + 6, extra = this.region < 0 ? 0 : 20;
+      const P = list.map((p, i) => ({ p, w: lws[i], x: p.x * v.sx + v.ox, y: p.y * v.sy + v.oy }));
+      for (let n = 0; n < 80; n++) {
+        let moved = false;
+        for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) {
+          const a = P[i], b = P[j], dx = b.x - a.x, dy = b.y - a.y;
+          const ex = (a.w + b.w) / 2 + 6 - Math.abs(dx), ey = bh - Math.abs(dy);
+          if (ex <= 0 || ey <= 0) continue;
+          moved = true;
+          if (ex < ey) { const s = (dx < 0 ? -ex : ex) / 2; a.x -= s; b.x += s; }
+          else { const s = (dy < 0 ? -ey : ey) / 2; a.y -= s; b.y += s; }
+        }
+        for (const q of P) {
+          q.x = Math.min(Math.max(q.x, PAD), this.w - PAD);
+          q.y = Math.min(Math.max(q.y, PAD), this.h - PAD - extra);
+        }
+        if (!moved) break;
+      }
+      this.pos = new Map(P.map((q) => [q.p.id, q]));
     }
 
     resize() {
@@ -62,9 +97,14 @@
       const g = this.cv.getContext("2d");
       g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
       g.clearRect(0, 0, w, h);
-      const { sx, sy, ox, oy } = this.view(), r = this.r;
+      const v = this.view(), r = this.r;
       const list = PROVINCES.filter((p) => this.inRegion(p)); // 地方図では、その地方の国だけを描く
-      const X = (p) => p.x * sx + ox, Y = (p) => p.y * sy + oy;
+      const nat = this.region < 0, fs = nat ? 11 : 14, ys = 10; // 文字の大きさ：国名／読み仮名
+      const th = fs + 4 + (nat ? 0 : ys + 3);                    // 全国図は小さすぎるため読み仮名を付けない
+      const wid = (t, size, bold) => { g.font = `${bold ? "bold " : ""}${size}px ${FONT}`; return t ? g.measureText(t).width : 0; };
+      const boxW = (l) => Math.max(wid(l.t, fs), wid(l.y, ys)) + 4;
+      this.layout(list, v, list.map((p) => boxW(this.label(p))), th);
+      const X = (p) => this.pos.get(p.id).x, Y = (p) => this.pos.get(p.id).y;
       const sel = PROVINCE_BY_ID.get(this.selected);
       const selOn = !!sel && this.inRegion(sel);
 
@@ -78,17 +118,15 @@
         g.beginPath(); g.moveTo(X(p), Y(p)); g.lineTo(X(q), Y(q)); g.stroke();
       }
 
-      // ノード
+      // 丸：支配大名の色
       g.lineWidth = 2;
       g.strokeStyle = "#050816";
       for (const p of list) {
-        g.fillStyle = COLORS[p.region];
+        g.fillStyle = NB.ownerOf(p.id).color;
         g.beginPath(); g.arc(X(p), Y(p), r, 0, Math.PI * 2); g.fill(); g.stroke();
       }
 
-      // 国名：下・上・右・左の順に、他の国名や丸と重ならない位置を探す。
-      // どこにも入らない国名は省略する（タップすると国名札が出る）。
-      const nat = this.region < 0, fs = nat ? 11 : 14, th = fs + 4;
+      // 文字：国名（地方図では読み仮名つき）。下・上・右・左の順に、他と重ならない位置を探す。入らなければ省略（タップで札が出る）
       const hit = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
       const used = list.map((p) => {
         const m = p === sel ? 7 : 1; // 選択中は金の輪の分だけ広く空ける
@@ -99,51 +137,56 @@
       g.lineJoin = "round";
       let plate = null;
       if (selOn) {
-        g.font = `bold 15px ${FONT}`;
-        const pw = g.measureText(sel.name).width + 16, ph = 26;
+        const pw = Math.max(wid(sel.name, 15, true), wid(sel.yomi, 10)) + 16, ph = 38;
         const px = Math.min(Math.max(X(sel) - pw / 2, 2), w - pw - 2);
         const py = Y(sel) - r - 8 - ph < 2 ? Y(sel) + r + 8 : Y(sel) - r - 8 - ph;
         plate = { x: px, y: py, w: pw, h: ph };
         used.push(plate);
       }
-      g.font = `${fs}px ${FONT}`;
+      const text = (t, cx, cy, size, color) => {
+        g.font = `${size}px ${FONT}`;
+        g.lineWidth = 3; g.strokeStyle = "#050816"; g.strokeText(t, cx, cy);
+        g.fillStyle = color; g.fillText(t, cx, cy);
+      };
       for (const p of list) {
         if (p === sel) continue;
-        const t = nat ? p.name.slice(0, 2) : p.name;
-        const tw = g.measureText(t).width + 4, x = X(p), y = Y(p);
-        const spots = [
-          [x - tw / 2, y + r + 2], [x - tw / 2, y - r - 2 - th],
-          [x + r + 3, y - th / 2], [x - r - 3 - tw, y - th / 2],
-        ];
-        for (const [bx, by] of spots) {
-          const box = { x: bx, y: by, w: tw, h: th };
-          if (bx < 2 || by < 2 || bx + tw > w - 2 || by + th > h - 2 || used.some((o) => hit(o, box))) continue;
-          used.push(box);
-          g.lineWidth = 3; g.strokeStyle = "#050816"; g.strokeText(t, bx + tw / 2, by + th / 2);
-          g.fillStyle = "#f2ecd8"; g.fillText(t, bx + tw / 2, by + th / 2);
+        const full = this.label(p), x = X(p), y = Y(p);
+        // 読み仮名つきが入らなければ、国名だけにして置く
+        for (const l of full.y ? [full, { t: full.t, y: "" }] : [full]) {
+          const tw = boxW(l), lh = l.y ? th : fs + 4, cx = Math.min(Math.max(x - tw / 2, 2), w - 2 - tw);
+          const spots = [[cx, y + r + 2], [cx, y - r - 2 - lh], [x + r + 3, y - lh / 2], [x - r - 3 - tw, y - lh / 2]];
+          const ok = spots.find(([bx, by]) => {
+            const box = { x: bx, y: by, w: tw, h: lh };
+            return !(bx < 2 || by < 2 || bx + tw > w - 2 || by + lh > h - 2 || used.some((o) => hit(o, box)));
+          });
+          if (!ok) continue;
+          used.push({ x: ok[0], y: ok[1], w: tw, h: lh });
+          text(l.t, ok[0] + tw / 2, ok[1] + (fs + 4) / 2, fs, "#f2ecd8");
+          if (l.y) text(l.y, ok[0] + tw / 2, ok[1] + fs + 4 + ys / 2 + 1, ys, "#c8bf9a");
           break;
         }
       }
 
-      // 選択中の国：金の輪と国名札（最前面）
+      // 選択中の国：金の輪と国名札（国名と読み仮名、最前面）
       if (selOn) {
         g.strokeStyle = "#ffd24a"; g.lineWidth = 3;
         g.beginPath(); g.arc(X(sel), Y(sel), r + 5, 0, Math.PI * 2); g.stroke();
         g.fillStyle = "#0d1636"; g.fillRect(plate.x, plate.y, plate.w, plate.h);
         g.lineWidth = 2; g.strokeRect(plate.x, plate.y, plate.w, plate.h);
-        g.font = `bold 15px ${FONT}`; g.fillStyle = "#ffd24a";
-        g.fillText(sel.name, plate.x + plate.w / 2, plate.y + plate.h / 2);
+        const cx = plate.x + plate.w / 2;
+        g.font = `bold 15px ${FONT}`; g.fillStyle = "#ffd24a"; g.fillText(sel.name, cx, plate.y + 14);
+        g.font = `10px ${FONT}`; g.fillStyle = "#c8bf9a"; g.fillText(sel.yomi, cx, plate.y + 29);
       }
     }
 
     // タップ位置に一番近い国を選ぶ（丸が重なっていても選びやすい）
     tap(e) {
       const b = this.cv.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
-      const { sx, sy, ox, oy } = this.view();
       let best = null, bd = Math.max(this.r * 2, 26) ** 2;
       for (const p of PROVINCES) {
-        if (!this.inRegion(p)) continue;
-        const d = (p.x * sx + ox - x) ** 2 + (p.y * sy + oy - y) ** 2;
+        const q = this.inRegion(p) && this.pos.get(p.id);
+        if (!q) continue;
+        const d = (q.x - x) ** 2 + (q.y - y) ** 2;
         if (d < bd) { bd = d; best = p; }
       }
       if (best) this.select(best.id);
@@ -161,39 +204,19 @@
 
     ui() {
       this.tabBtns.forEach((b, i) => b.classList.toggle("on", i - 1 === this.region));
-      const p = PROVINCE_BY_ID.get(this.selected), el = this.info;
-      el.textContent = "";
-      const add = (tag, text, cls) => {
-        const e = document.createElement(tag);
-        e.textContent = text;
-        if (cls) e.className = cls;
-        el.append(e);
-        return e;
-      };
-      if (!p) {
-        add("h2", "50か国 仮地図");
-        add("p", "丸をタップすると、国名と隣接国が表示されます。");
-      } else {
-        add("h2", `${String(p.id).padStart(2, "0")} ${p.name}`);
-        add("p", `${REGIONS[p.region]}　隣接 ${p.neighbors.length}国`);
-        const row = add("div", "", "nb");
-        for (const n of p.neighbors) {
-          const b = document.createElement("button");
-          b.textContent = PROVINCE_BY_ID.get(n).name;
-          b.onclick = () => this.select(n);
-          row.append(b);
-        }
-      }
-      add("p", "※仮地図です。大名・国力・支配色はPhase 2以降で実装します。", "note");
-      this.stat = add("p", "", "note");
+      this.toggle.textContent = this.mode === "daimyo" ? "表示：大名" : "表示：国名";
+      NB.renderProvincePanel(this.info, PROVINCE_BY_ID.get(this.selected), (id) => this.select(id));
+      this.stat = document.createElement("p");
+      this.stat.className = "note";
+      this.info.append(this.stat);
       this.status();
     }
 
     status() {
       if (!this.stat) return;
-      const e = this.errors, portrait = window.innerHeight >= window.innerWidth;
-      const check = e.length ? `エラー ${e.length}件（${e[0]}）` : "OK（50国・隣接は双方向）";
-      this.stat.textContent = `データ検査：${check}／画面 ${window.innerWidth}×${window.innerHeight}（${portrait ? "縦" : "横"}）`;
+      const e = this.errors, C = NB.CONFIG, portrait = window.innerHeight >= window.innerWidth;
+      const check = e.length ? `エラー${e.length}件（${e[0]}）` : "OK";
+      this.stat.textContent = `Ver ${C.version}／データ検査：${check}／画面 ${window.innerWidth}×${window.innerHeight}（${portrait ? "縦" : "横"}）`;
     }
   };
 })(window.NB);
