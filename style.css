@@ -31,7 +31,7 @@ h1 small{font-size:.5em;letter-spacing:.6em;text-indent:.6em;color:var(--ink);te
 .big{min-height:76px;font-size:20px}
 
 /* 仮地図：縦＝地図が上・情報が下／横＝左65%が地図・右35%が情報 */
-#map{display:grid;gap:8px;overflow:hidden;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) 28%;grid-template-areas:"t" "s" "i"}
+#map{display:grid;gap:8px;overflow:hidden;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) 36%;grid-template-areas:"t" "s" "i"}
 #tabs{grid-area:t;display:flex;gap:6px;overflow-x:auto}
 #tabs button{flex:none;min-width:56px}
 #tabs .on{background:var(--hi);border-color:var(--hi);color:#1a1200}
@@ -54,3 +54,15 @@ h1 small{font-size:.5em;letter-spacing:.6em;text-indent:.6em;color:var(--ink);te
   .menu{flex:1.4;grid-template-columns:1fr 1fr}
   #map{grid-template-columns:minmax(0,65fr) minmax(0,35fr);grid-template-rows:auto minmax(0,1fr);grid-template-areas:"t i" "s i"}
 }
+
+/* 国情報・支配色 */
+.chip{display:inline-block;width:1.1em;height:1.1em;margin-right:.4em;border:1px solid var(--ink);vertical-align:-.15em}
+.st{display:grid;grid-template-columns:repeat(4,auto);gap:2px 10px;margin:6px 0;font-size:14px}
+.st dt{color:var(--dim)}
+.st dd{margin:0;text-align:right}
+#tabs .tog{border-color:var(--hi);color:var(--hi)}
+
+/* 読み仮名 */
+#info h2 small{font-weight:400}
+.nb button{min-height:48px;padding:2px 8px;line-height:1.3}
+.nb button small{font-size:10px;line-height:1.2}
