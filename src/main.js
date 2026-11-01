@@ -9,7 +9,7 @@
   function show(name) {
     for (const id of SCREENS) $("#" + id).hidden = id !== name;
     if (name === "map") {
-      if (!nationalMap) nationalMap = new NB.NationalMap($("#map"), NB.validateProvinceGraph(NB.PROVINCES));
+      if (!nationalMap) nationalMap = new NB.NationalMap($("#map"), NB.validateProvinceGraph(NB.PROVINCES).concat(NB.validateScenario(NB.PROVINCES, NB.SCENARIO, NB.DAIMYO_BY_ID)));
       nationalMap.resize();
     }
   }
@@ -22,10 +22,10 @@
 
   const HOWTO =
     "1. 「はじめから」→「50か国モード」で仮地図を開きます。\n" +
-    "2. 地図の丸をタップすると、国名と隣接国が出ます。\n" +
-    "3. 上のタブで地方を拡大できます。\n" +
+    "2. 地図の丸をタップすると、支配大名と国力が出ます（丸の色は大名の色）。\n" +
+    "3. 上のタブで地方を拡大でき、「表示」で国名と大名名を切り替えられます。\n" +
     "4. 画面を横向きにしても使えます。\n\n" +
-    "※現在はPhase 1（画面の土台）です。ゲーム本編は今後のPhaseで追加します。";
+    "※現在はPhase 2（50か国データと国情報）です。ゲーム本編は今後のPhaseで追加します。";
 
   // [表示名, 押したときの処理]（処理なし＝準備中）
   const MENU = [
@@ -86,4 +86,5 @@
 
   guardTouch();
   drawCrest();
+  $("#ver").textContent = `Ver ${NB.CONFIG.version}（Phase ${NB.CONFIG.phase}）${NB.CONFIG.date}`;
 })(window.NB);
