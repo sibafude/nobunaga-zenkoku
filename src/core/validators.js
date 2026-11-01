@@ -16,4 +16,24 @@
     }
     return errors;
   };
+
+  // 初期配置の検査（仕様書 16-2）：国名・支配者ID・国力の値
+  NB.validateScenario = function (provinces, scenario, daimyoById) {
+    const errors = [];
+    for (const p of provinces) {
+      const s = scenario.provinces[p.id];
+      if (!p.name) errors.push(`国ID ${p.id} の国名が空です`);
+      if (!s) { errors.push(`${p.name} の初期データがありません`); continue; }
+      if (!daimyoById.has(s.ownerDaimyoId)) errors.push(`${p.name} の支配者IDが見つかりません`);
+      for (const [k, x] of Object.entries(s.stats)) {
+        if (!Number.isFinite(x) || x < 0) errors.push(`${p.name} の ${k} の値が不正です`);
+      }
+    }
+    const kana = /^[ぁ-ゖー]+$/;
+    for (const p of provinces) if (!kana.test(p.yomi || "")) errors.push(`${p.name} の読みがひらがなではありません`);
+    for (const d of daimyoById.values()) {
+      if (!kana.test(d.familyYomi || "") || !kana.test(d.givenYomi || "")) errors.push(`${d.name} の読みがひらがなではありません`);
+    }
+    return errors;
+  };
 })(window.NB = window.NB || {});
